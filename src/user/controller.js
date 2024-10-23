@@ -5,8 +5,8 @@ const jwt = require("jsonwebtoken");
 
 const JWT_SECRET = "nizaR*123"; 
 
-const getStudents = (req, res) => {
-  pool.query(queries.getStudents, (error, results) => {
+const getUsers = (req, res) => {
+  pool.query(queries.getUsers, (error, results) => {
     if (error) {
       console.error("Error:", error);
       res.status(500).json({ error: "Database error" });
@@ -16,14 +16,14 @@ const getStudents = (req, res) => {
   });
 };
 
-const getStudentById = (req, res) => {
-  const id = parseInt(req.params.id); //the id is a string so you have to parse it
-  pool.query(queries.getStudentById, [id], (error, results) => {
-    const isStudentExist = results.rows.length;
-    if (isStudentExist) {
+const getUserById = (req, res) => {
+  const id = req.params.id; //the id is a string so you have to parse it
+  pool.query(queries.getUserById, [id], (error, results) => {
+    const isUserExist = results.rows.length;
+    if (isUserExist) {
       res.status(200).json(results.rows);
     } else {
-      res.send("Student doesnt exist!");
+      res.send("User doesnt exist!");
     }
     if (error) {
       console.error("Error:", error);
@@ -33,8 +33,8 @@ const getStudentById = (req, res) => {
   });
 };
 
-// Register a new student
-const addStudent = async (req, res) => {
+// Register a new user
+const addUser = async (req, res) => {
     const { name, email, age, dob, password } = req.body;
 
     // CHECK IF EMAIL EXISTS
@@ -46,40 +46,40 @@ const addStudent = async (req, res) => {
     // Hash the password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // ADD STUDENT TO THE DATABASE
+    // ADD user TO THE DATABASE
     pool.query(
-        queries.addStudent,
+        queries.addUser,
         [name, email, age, dob, hashedPassword],
         (error, results) => {
             if (error) {
                 console.error("Error:", error);
                 return res.status(500).json({ error: "Database error" });
             }
-            res.status(201).json({ message: "Student created successfully!" });
+            res.status(201).json({ message: "User created successfully!" });
         }
     );
 };
-// Login a student
-const loginStudent = async (req, res) => {
+// Login a user
+const loginUser = async (req, res) => {
     const { email, password } = req.body;
 
     console.log("Login attempt:", email);
 
-    const student = await pool.query(queries.getStudentByEmail, [email]);
-    console.log("Student found:", student.rows);
+    const user = await pool.query(queries.getUserByEmail, [email]);
+    console.log("User found:", user.rows);
 
-    if (student.rows.length === 0) {
+    if (user.rows.length === 0) {
         return res.status(401).send("Invalid credentials!"); // 401 Unauthorized
     }
 
-    const validPassword = await bcrypt.compare(password, student.rows[0].password);
+    const validPassword = await bcrypt.compare(password, user.rows[0].password);
     console.log("Password valid:", validPassword);
 
     if (!validPassword) {
         return res.status(401).send("Invalid credentials!"); // 401 Unauthorized
     }
 
-    const token = jwt.sign({ id: student.rows[0].id, email: student.rows[0].email }, JWT_SECRET, {
+    const token = jwt.sign({ id: user.rows[0].id, email: user.rows[0].email }, JWT_SECRET, {
         expiresIn: "1h",
     });
 
@@ -100,44 +100,44 @@ const authenticateToken = (req, res, next) => {
     });
 };
 
-const deleteStudent = (req, res) => {
-  const id = parseInt(req.params.id);
-  pool.query(queries.getStudentById, [id], (error, results) => {
-    const noStudentFound = !results.rows.length;
-    if (noStudentFound) {
-      res.send("Student doesnt exist!");
+const deleteUser = (req, res) => {
+  const id = req.params.id;
+  pool.query(queries.getUserById, [id], (error, results) => {
+    const noUserFound = !results.rows.length;
+    if (noUserFound) {
+      res.send("user doesnt exist!");
     }
-    pool.query(queries.deleteStudent, [id], (error, results) => {
+    pool.query(queries.deleteUser, [id], (error, results) => {
       if (error) {
         console.error("Error:", error);
         res.status(500).json({ error: "Database error" });
         return;
       }
-      if (!noStudentFound) {
-        res.status(200).json("Student was deleted successfully!");
+      if (!noUserFound) {
+        res.status(200).json("user was deleted successfully!");
       }
     });
   });
 };
 
-const updateStudent = (req, res) => {
+const updateUser = (req, res) => {
   const id = parseInt(req.params.id);
   const { name, email } = req.body;
 
-  pool.query(queries.getStudentById, [id], (error, results) => {
-    const noStudentFound = !results.rows.length;
-    if (noStudentFound) {
-      res.send("Student doesnt exist!");
+  pool.query(queries.getUserById, [id], (error, results) => {
+    const noUserFound = !results.rows.length;
+    if (noUserFound) {
+      res.send("user doesnt exist!");
     }
 
-    pool.query(queries.updateStudent, [name, email, id], (error, results) => {
+    pool.query(queries.updateUser, [name, email, id], (error, results) => {
       if (error) {
         console.error("Error:", error);
         res.status(500).json({ error: "Database error" });
         return;
       }
-      if (!noStudentFound) {
-        res.status(200).json("Student was updated successfully!");
+      if (!noUserFound) {
+        res.status(200).json("user was updated successfully!");
       }
     });
   });
@@ -145,11 +145,11 @@ const updateStudent = (req, res) => {
 
 module.exports = {
     authenticateToken,
-    getStudents,
-    addStudent,
-    loginStudent,
+    getUsers,
+    addUser,
+    loginUser,
     authenticateToken,
-    getStudentById,
-    updateStudent,
-    deleteStudent,
+    getUserById,
+    updateUser,
+    deleteUser,
 };

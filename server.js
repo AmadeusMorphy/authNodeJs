@@ -1,5 +1,5 @@
 const express = require('express');
-const studentRoutes = require('./src/student/routes');
+const userRoutes = require('./src/user/routes');
 const cors = require('cors'); 
 
 const app = express();
@@ -12,6 +12,6 @@ app.get("/", (req, res) => {
     res.send("testing api");
 });
 
-app.use("/api/v1/students", studentRoutes);
+app.use("/api/v1/users", userRoutes);
 
 app.listen(port, () => console.log(`app listining on ${port}`));
