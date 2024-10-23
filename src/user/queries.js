@@ -1,5 +1,5 @@
 const getUsers = "SELECT * FROM users";
-const addUser = "INSERT INTO users (name, email, age, dob, password) VALUES ($1, $2, $3, $4, $5)";
+const addUser = "INSERT INTO users (name, email, age, dateCreated, password) VALUES ($1, $2, $3, $4, $5)";
 const getUserById = "SELECT * FROM users WHERE id = $1";
 const checkEmailExists = "SELECT s FROM users s WHERE s.email = $1";
 const updateUser = "UPDATE users SET name = $1, email = $2 WHERE id = $3";

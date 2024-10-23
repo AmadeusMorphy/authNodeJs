@@ -41,7 +41,7 @@ const getUserById = async (req, res) => {
 };
 
 const addUser = async (req, res) => {
-  const { name, email, age, dob, password } = req.body;
+  const { name, email, age, dateCreated, password } = req.body;
 
   const { data: emailExists, error: emailError } = await supabase
     .from('users')
@@ -56,7 +56,7 @@ const addUser = async (req, res) => {
 
   const { data, error } = await supabase
     .from('users')
-    .insert([{ name, email, age, dob, password: hashedPassword }]);
+    .insert([{ name, email, age, dateCreated, password: hashedPassword }]);
 
   if (error) {
     console.error("Error:", error);
