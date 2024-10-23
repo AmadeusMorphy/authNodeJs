@@ -1,5 +1,5 @@
 const jwt = require('jsonwebtoken');
-const JWT_SECRET = 'nizaR*123'; // Replace with your actual secret
+const JWT_SECRET = 'p5XqM279OM6vPZP4VoFugaEO8gEMrGbsAU7Jg+acIU05yVFU/3L52dsqBvnuRXXZT4ZxR7rs0O98j74WMykrjQ=='; // Replace with your actual secret
 
 const authenticateToken = (req, res, next) => {
     const authHeader = req.headers['authorization'];
