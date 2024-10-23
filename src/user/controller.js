@@ -8,18 +8,35 @@ const supabaseUrl = 'https://twytcppiyyqowuyjvmft.supabase.co';
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR3eXRjcHBpeXlxb3d1eWp2bWZ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mjk2Nzc3OTYsImV4cCI6MjA0NTI1Mzc5Nn0.Jbi627MhoZWuz-KK0m7KtcrhJmxSzuHibxX1M8SHzKE';
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-const getUsers = async (req, res) => {
+// const getUsers = async (req, res) => {
+//   const { data, error } = await supabase
+//     .from('users')
+//     .select('*');
+
+//   if (error) {
+//     console.error("Error:", error);
+//     return res.status(500).json({ error: "Database error" });
+//   }
+
+//   res.status(200).json(data);
+// };
+
+const getUsersByKey = async (req, res) => {
+  const { key } = req.query; // Get the key from the query parameters
+
+  // Check if the key is valid
+  if (key !== 'nizaR*123') {
+      return res.status(403).json({ message: "Invalid key" }); // Forbidden
+  }else{
+
+  // If valid, fetch users
   const { data, error } = await supabase
     .from('users')
     .select('*');
-
-  if (error) {
-    console.error("Error:", error);
-    return res.status(500).json({ error: "Database error" });
+    res.status(200).json(data);
   }
-
-  res.status(200).json(data);
 };
+
 
 const getUserById = async (req, res) => {
   const id = req.params.id;
@@ -158,7 +175,8 @@ const updateUser = async (req, res) => {
 
 module.exports = {
   authenticateToken,
-  getUsers,
+  // getUsers,
+  getUsersByKey,
   addUser,
   loginUser,
   getUserById,
