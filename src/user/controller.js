@@ -1,155 +1,167 @@
-const pool = require("../../db");
-const queries = require("./queries");
+const { createClient } = require('@supabase/supabase-js');
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 
 const JWT_SECRET = "nizaR*123"; 
 
-const getUsers = (req, res) => {
-  pool.query(queries.getUsers, (error, results) => {
-    if (error) {
-      console.error("Error:", error);
-      res.status(500).json({ error: "Database error" });
-      return;
-    }
-    res.status(200).json(results.rows);
-  });
+const supabaseUrl = 'https://twytcppiyyqowuyjvmft.supabase.co';
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR3eXRjcHBpeXlxb3d1eWp2bWZ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mjk2Nzc3OTYsImV4cCI6MjA0NTI1Mzc5Nn0.Jbi627MhoZWuz-KK0m7KtcrhJmxSzuHibxX1M8SHzKE';
+const supabase = createClient(supabaseUrl, supabaseKey);
+
+const getUsers = async (req, res) => {
+  const { data, error } = await supabase
+    .from('users')
+    .select('*');
+
+  if (error) {
+    console.error("Error:", error);
+    return res.status(500).json({ error: "Database error" });
+  }
+
+  res.status(200).json(data);
 };
 
-const getUserById = (req, res) => {
-  const id = req.params.id; //the id is a string so you have to parse it
-  pool.query(queries.getUserById, [id], (error, results) => {
-    const isUserExist = results.rows.length;
-    if (isUserExist) {
-      res.status(200).json(results.rows);
-    } else {
-      res.send("User doesnt exist!");
-    }
-    if (error) {
-      console.error("Error:", error);
-      res.status(500).json({ error: "Database error" });
-      return;
-    }
-  });
+const getUserById = async (req, res) => {
+  const id = req.params.id;
+  const { data, error } = await supabase
+    .from('users')
+    .select('*')
+    .eq('id', id);
+
+  if (error) {
+    console.error("Error:", error);
+    return res.status(500).json({ error: "Database error" });
+  }
+
+  if (data.length === 0) {
+    return res.status(404).send("User doesn't exist!");
+  }
+
+  res.status(200).json(data);
 };
 
-// Register a new user
 const addUser = async (req, res) => {
-    const { name, email, age, dob, password } = req.body;
+  const { name, email, age, dob, password } = req.body;
 
-    // CHECK IF EMAIL EXISTS
-    const emailExists = await pool.query(queries.checkEmailExists, [email]);
-    if (emailExists.rows.length) {
-        return res.status(409).send("Email already exists!"); // 409 Conflict
-    }
+  const { data: emailExists, error: emailError } = await supabase
+    .from('users')
+    .select('email')
+    .eq('email', email);
 
-    // Hash the password
-    const hashedPassword = await bcrypt.hash(password, 10);
+  if (emailExists.length) {
+    return res.status(409).send("Email already exists!");
+  }
 
-    // ADD user TO THE DATABASE
-    pool.query(
-        queries.addUser,
-        [name, email, age, dob, hashedPassword],
-        (error, results) => {
-            if (error) {
-                console.error("Error:", error);
-                return res.status(500).json({ error: "Database error" });
-            }
-            res.status(201).json({ message: "User created successfully!" });
-        }
-    );
+  const hashedPassword = await bcrypt.hash(password, 10);
+
+  const { data, error } = await supabase
+    .from('users')
+    .insert([{ name, email, age, dob, password: hashedPassword }]);
+
+  if (error) {
+    console.error("Error:", error);
+    return res.status(500).json({ error: "Database error" });
+  }
+
+  res.status(201).json({ message: "User created successfully!" });
 };
-// Login a user
+
 const loginUser = async (req, res) => {
-    const { email, password } = req.body;
+  const { email, password } = req.body;
 
-    console.log("Login attempt:", email);
+  const { data: user, error } = await supabase
+    .from('users')
+    .select('*')
+    .eq('email', email);
 
-    const user = await pool.query(queries.getUserByEmail, [email]);
-    console.log("User found:", user.rows);
+  if (error || user.length === 0) {
+    return res.status(401).send("Invalid credentials!");
+  }
 
-    if (user.rows.length === 0) {
-        return res.status(401).send("Invalid credentials!"); // 401 Unauthorized
-    }
+  const validPassword = await bcrypt.compare(password, user[0].password);
 
-    const validPassword = await bcrypt.compare(password, user.rows[0].password);
-    console.log("Password valid:", validPassword);
+  if (!validPassword) {
+    return res.status(401).send("Invalid credentials!");
+  }
 
-    if (!validPassword) {
-        return res.status(401).send("Invalid credentials!"); // 401 Unauthorized
-    }
+  const token = jwt.sign({ id: user[0].id, email: user[0].email }, JWT_SECRET, {
+    expiresIn: "1h",
+  });
 
-    const token = jwt.sign({ id: user.rows[0].id, email: user.rows[0].email }, JWT_SECRET, {
-        expiresIn: "1h",
-    });
-
-    res.json({ token });
+  res.json({ token });
 };
 
 // Middleware to verify token
 const authenticateToken = (req, res, next) => {
-    const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1];
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
 
-    if (!token) return res.sendStatus(401); // Unauthorized
+  if (!token) return res.sendStatus(401); // Unauthorized
 
-    jwt.verify(token, JWT_SECRET, (err, user) => {
-        if (err) return res.sendStatus(403); // Forbidden
-        req.user = user; // Save user info to request
-        next();
-    });
-};
-
-const deleteUser = (req, res) => {
-  const id = req.params.id;
-  pool.query(queries.getUserById, [id], (error, results) => {
-    const noUserFound = !results.rows.length;
-    if (noUserFound) {
-      res.send("user doesnt exist!");
-    }
-    pool.query(queries.deleteUser, [id], (error, results) => {
-      if (error) {
-        console.error("Error:", error);
-        res.status(500).json({ error: "Database error" });
-        return;
-      }
-      if (!noUserFound) {
-        res.status(200).json("user was deleted successfully!");
-      }
-    });
+  jwt.verify(token, JWT_SECRET, (err, user) => {
+    if (err) return res.sendStatus(403); // Forbidden
+    req.user = user; // Save user info to request
+    next();
   });
 };
 
-const updateUser = (req, res) => {
-  const id = parseInt(req.params.id);
+const deleteUser = async (req, res) => {
+  const id = req.params.id;
+
+  const { data: user, error } = await supabase
+    .from('users')
+    .select('*')
+    .eq('id', id);
+
+  if (user.length === 0) {
+    return res.status(404).send("User doesn't exist!");
+  }
+
+  const { error: deleteError } = await supabase
+    .from('users')
+    .delete()
+    .eq('id', id);
+
+  if (deleteError) {
+    console.error("Error:", deleteError);
+    return res.status(500).json({ error: "Database error" });
+  }
+
+  res.status(200).json("User deleted successfully!");
+};
+
+const updateUser = async (req, res) => {
+  const id = req.params.id;
   const { name, email } = req.body;
 
-  pool.query(queries.getUserById, [id], (error, results) => {
-    const noUserFound = !results.rows.length;
-    if (noUserFound) {
-      res.send("user doesnt exist!");
-    }
+  const { data: user, error } = await supabase
+    .from('users')
+    .select('*')
+    .eq('id', id);
 
-    pool.query(queries.updateUser, [name, email, id], (error, results) => {
-      if (error) {
-        console.error("Error:", error);
-        res.status(500).json({ error: "Database error" });
-        return;
-      }
-      if (!noUserFound) {
-        res.status(200).json("user was updated successfully!");
-      }
-    });
-  });
+  if (user.length === 0) {
+    return res.status(404).send("User doesn't exist!");
+  }
+
+  const { error: updateError } = await supabase
+    .from('users')
+    .update({ name, email })
+    .eq('id', id);
+
+  if (updateError) {
+    console.error("Error:", updateError);
+    return res.status(500).json({ error: "Database error" });
+  }
+
+  res.status(200).json("User updated successfully!");
 };
 
 module.exports = {
-    authenticateToken,
-    getUsers,
-    addUser,
-    loginUser,
-    authenticateToken,
-    getUserById,
-    updateUser,
-    deleteUser,
+  authenticateToken,
+  getUsers,
+  addUser,
+  loginUser,
+  getUserById,
+  updateUser,
+  deleteUser,
 };
