@@ -149,7 +149,7 @@ const deleteUser = async (req, res) => {
 
 const updateUser = async (req, res) => {
   const id = req.params.id;
-  const { name, email } = req.body;
+  const { name, email, friends } = req.body;
 
   const { data: user, error } = await supabase
     .from('users')
@@ -162,7 +162,7 @@ const updateUser = async (req, res) => {
 
   const { error: updateError } = await supabase
     .from('users')
-    .update({ name, email })
+    .update({ name, email, friends })
     .eq('id', id);
 
   if (updateError) {
