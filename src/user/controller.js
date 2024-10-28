@@ -182,9 +182,7 @@ const addFriendToUser = async (req, res) => {
     // Create the messages table using the SQL function
     const { error: createTableError } = await supabase.rpc(
       "create_messages_table",
-      {
-        table_name: messagesTableName,
-      }
+      { table_name: messagesTableName }
     );
 
     if (createTableError) {
@@ -204,72 +202,84 @@ const addFriendToUser = async (req, res) => {
       return res.status(500).json({ error: "Error fetching user data" });
     }
 
-    // Get current friendships or initialize as an empty object
+    // Ensure friendships is an array
     const friendships = Array.isArray(userData.friendships) ? userData.friendships : [];
 
-    const newFriendship = {
-      friendId: friendId,
-      messagesId: messagesTableName,
-    };
-    // Update user's friendships
-    const { data: updatedUserData, error: userUpdateError } = await supabase
-      .from("users")
-      .update({
-        friendships: [...friendships, newFriendship]
-      })
-      .eq("id", userId)
-      .select(
-        "name, email, password, age, dateCreated, id, profileImg, friendships"
-      );
+    // Check if friendship already exists
+    const friendshipExists = friendships.some(f => f.friendId === friendId);
 
-    if (userUpdateError) {
-      console.error("Error updating user friends:", userUpdateError);
-      return res.status(500).json({ error: "Error updating user friends" });
+    // Only add new friendship if it doesn’t exist
+    if (!friendshipExists) {
+      const newFriendship = {
+        friendId: friendId,
+        messagesId: messagesTableName,
+      };
+
+      // Update user's friendships
+      const { data: updatedUserData, error: userUpdateError } = await supabase
+        .from("users")
+        .update({
+          friendships: [...friendships, newFriendship],
+        })
+        .eq("id", userId)
+        .select("name, email, password, age, dateCreated, id, profileImg, friendships");
+
+      if (userUpdateError) {
+        console.error("Error updating user friends:", userUpdateError);
+        return res.status(500).json({ error: "Error updating user friends" });
+      }
     }
 
-    const newFriendshipFriend = {
-      friendId: userId,
-      messagesId: messagesTableName,
-    };
-    // Update friend's friendships
-    const { data: updatedFriendData, error: friendUpdateError } = await supabase
+    // Now update the friend's record if they don’t already have this friendship
+    const { data: friendData, error: errorFriendFetch } = await supabase
       .from("users")
-      .update({
-        friendships: [...friendships, newFriendshipFriend],
-      })
+      .select("friendships")
       .eq("id", friendId)
-      .select(
-        "name, email, password, age, dateCreated, id, profileImg, friendships"
-      );
+      .single();
 
-    if (friendUpdateError) {
-      console.error("Error updating friend:", friendUpdateError);
-      return res.status(500).json({ error: "Error updating friend" });
+    if (errorFriendFetch) {
+      console.error("Error fetching friend data:", errorFriendFetch);
+      return res.status(500).json({ error: "Error fetching friend data" });
     }
 
-    // Format the response
-    const formattedUserData = updatedUserData.map((user) => ({
-      ...user,
-      friendships: { id: friendId },
-    }));
+    // Ensure friend's friendships is an array
+    const friendshipsFriend = Array.isArray(friendData.friendships) ? friendData.friendships : [];
 
-    const formattedFriendData = updatedFriendData.map((friend) => ({
-      ...friend,
-      friendships: { id: userId },
-    }));
+    // Check if the reverse friendship already exists
+    const reverseFriendshipExists = friendshipsFriend.some(f => f.friendId === userId);
+
+    if (!reverseFriendshipExists) {
+      const newFriendshipFriend = {
+        friendId: userId,
+        messagesId: messagesTableName,
+      };
+
+      // Update friend’s friendships
+      const { data: updatedFriendData, error: friendUpdateError } = await supabase
+        .from("users")
+        .update({
+          friendships: [...friendshipsFriend, newFriendshipFriend],
+        })
+        .eq("id", friendId)
+        .select("name, email, password, age, dateCreated, id, profileImg, friendships");
+
+      if (friendUpdateError) {
+        console.error("Error updating friend:", friendUpdateError);
+        return res.status(500).json({ error: "Error updating friend" });
+      }
+    }
 
     res.status(200).json({
       message: "Friend added successfully!",
       friendshipId: friendshipId,
       messagesTableName: messagesTableName,
-      userData: formattedUserData,
-      friendData: formattedFriendData,
     });
   } catch (error) {
     console.error("Error in addFriendToUser:", error);
     res.status(500).json({ error: "Database error" });
   }
 };
+
 
 module.exports = {
   authenticateToken,
