@@ -13,6 +13,7 @@ router.get('/validate-token', authenticateToken, (req, res) => {
 });
 router.get('/:id', authenticateToken, controller.getUserById);
 router.put('/:id', authenticateToken, controller.updateUser);
+router.post("/add-friend/:id", controller.addFriendToUser);
 router.delete("/:id", authenticateToken, controller.deleteUser);
 
 

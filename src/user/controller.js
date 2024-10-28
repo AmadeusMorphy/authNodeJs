@@ -1,12 +1,14 @@
 const { createClient } = require('@supabase/supabase-js');
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
-
+const { v4: uuidv4 } = require('uuid'); 
 const JWT_SECRET = "p5XqM279OM6vPZP4VoFugaEO8gEMrGbsAU7Jg+acIU05yVFU/3L52dsqBvnuRXXZT4ZxR7rs0O98j74WMykrjQ=="; 
 
 const supabaseUrl = 'https://twytcppiyyqowuyjvmft.supabase.co';
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR3eXRjcHBpeXlxb3d1eWp2bWZ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mjk2Nzc3OTYsImV4cCI6MjA0NTI1Mzc5Nn0.Jbi627MhoZWuz-KK0m7KtcrhJmxSzuHibxX1M8SHzKE';
-const supabase = createClient(supabaseUrl, supabaseKey);
+const supabase = createClient(supabaseUrl, supabaseKey, { 
+  db: { schema: 'public' } 
+});
 
 // const getUsers = async (req, res) => {
 //   const { data, error } = await supabase
@@ -173,6 +175,102 @@ const updateUser = async (req, res) => {
   res.status(200).json("User updated successfully!");
 };
 
+const addFriendToUser = async (req, res) => {
+  const userId = req.params.id;
+  const { friendId } = req.body;
+
+  // Generate a unique friendship ID (first 6 characters of a UUID)
+  const friendshipId = uuidv4().substring(0, 6);
+  const messagesTableName = `messages_${friendshipId}`;
+
+  try {
+    // Create the messages table using the SQL function
+    const { error: createTableError } = await supabase.rpc('create_messages_table', { 
+      table_name: messagesTableName 
+    });
+
+    if (createTableError) {
+      console.error("Error creating messages table:", createTableError);
+      return res.status(500).json({ error: "Error creating messages table" });
+    }
+
+    // Retrieve the user's current friendships
+    const { data: userData, error: userFetchError } = await supabase
+      .from('users')
+      .select('friendships')
+      .eq('id', userId)
+      .single();
+
+    if (userFetchError) {
+      console.error("Error fetching user data:", userFetchError);
+      return res.status(500).json({ error: "Error fetching user data" });
+    }
+
+    // Get current friendships or initialize as an empty object
+    const friendships = userData.friendships || {};
+
+    // Update user's friendships
+    const { data: updatedUserData, error: userUpdateError } = await supabase
+      .from('users')
+      .update({
+        friendships: {
+          ...friendships, // Retain existing friendships
+          [friendId]: messagesTableName, // Add new friendship
+        }
+      })
+      .eq('id', userId)
+      .select('name, email, password, age, dateCreated, id, profileImg, friendships');
+
+    if (userUpdateError) {
+      console.error("Error updating user friends:", userUpdateError);
+      return res.status(500).json({ error: "Error updating user friends" });
+    }
+
+    // Update friend's friendships
+    const { data: updatedFriendData, error: friendUpdateError } = await supabase
+      .from('users')
+      .update({
+        friendships: {
+          ...friendships, // Retain existing friendships for the friend
+          [userId]: messagesTableName, // Add new friendship
+        }
+      })
+      .eq('id', friendId)
+      .select('name, email, password, age, dateCreated, id, profileImg, friendships');
+
+    if (friendUpdateError) {
+      console.error("Error updating friend:", friendUpdateError);
+      return res.status(500).json({ error: "Error updating friend" });
+    }
+
+    // Format the response
+    const formattedUserData = updatedUserData.map(user => ({
+      ...user,
+      friendships: { id: friendId }
+    }));
+
+    const formattedFriendData = updatedFriendData.map(friend => ({
+      ...friend,
+      friendships: { id: userId }
+    }));
+
+    res.status(200).json({ 
+      message: "Friend added successfully!", 
+      friendshipId: friendshipId,
+      messagesTableName: messagesTableName,
+      userData: formattedUserData,
+      friendData: formattedFriendData
+    });
+  } catch (error) {
+    console.error("Error in addFriendToUser:", error);
+    res.status(500).json({ error: "Database error" });
+  }
+};
+
+
+
+
+
 module.exports = {
   authenticateToken,
   // getUsers,
@@ -180,6 +278,7 @@ module.exports = {
   addUser,
   loginUser,
   getUserById,
+  addFriendToUser,
   updateUser,
   deleteUser,
 };
