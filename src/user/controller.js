@@ -205,21 +205,17 @@ const addFriendToUser = async (req, res) => {
     }
 
     // Get current friendships or initialize as an empty object
-    const friendships = userData.friendships || {};
+    const friendships = Array.isArray(userData.friendships) ? userData.friendships : [];
 
+    const newFriendship = {
+      friendId: friendId,
+      messagesId: messagesTableName,
+    };
     // Update user's friendships
     const { data: updatedUserData, error: userUpdateError } = await supabase
       .from("users")
       .update({
-        friendships: [
-          {
-            ...friendships, // Retain existing friendships
-          },
-          {
-            friendId: friendId,
-            messagesId: messagesTableName, // Add new friendship
-          },
-        ],
+        friendships: [...friendships, newFriendship]
       })
       .eq("id", userId)
       .select(
@@ -231,20 +227,15 @@ const addFriendToUser = async (req, res) => {
       return res.status(500).json({ error: "Error updating user friends" });
     }
 
+    const newFriendshipFriend = {
+      friendId: userId,
+      messagesId: messagesTableName,
+    };
     // Update friend's friendships
     const { data: updatedFriendData, error: friendUpdateError } = await supabase
       .from("users")
       .update({
-        friendships: [
-          {
-            ...friendships,
-          },
-          {
-            // Retain existing friendships for the friend
-            friendId: userId,
-            messagesId: messagesTableName, // Add new friendship
-          },
-        ],
+        friendships: [...friendships, newFriendshipFriend],
       })
       .eq("id", friendId)
       .select(
