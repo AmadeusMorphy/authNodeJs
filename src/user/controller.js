@@ -181,7 +181,7 @@ const addFriendToUser = async (req, res) => {
 
   // Generate a unique friendship ID (first 6 characters of a UUID)
   const friendshipId = uuidv4().substring(0, 6);
-  const messagesTableName = `messages_${friendshipId}`;
+  const messagesTableName = `messages_${friendshipId}_${userId}`;
 
   try {
     // Create the messages table using the SQL function
@@ -215,7 +215,8 @@ const addFriendToUser = async (req, res) => {
       .update({
         friendships: {
           ...friendships, // Retain existing friendships
-          [friendId]: messagesTableName, // Add new friendship
+          friendId: friendId,
+          messagesId: messagesTableName // Add new friendship
         }
       })
       .eq('id', userId)
@@ -232,7 +233,8 @@ const addFriendToUser = async (req, res) => {
       .update({
         friendships: {
           ...friendships, // Retain existing friendships for the friend
-          [userId]: messagesTableName, // Add new friendship
+          friendId: userId,
+          messagesId: messagesTableName // Add new friendship
         }
       })
       .eq('id', friendId)
