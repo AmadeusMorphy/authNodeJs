@@ -16,7 +16,7 @@ router.put('/:id', authenticateToken, controller.updateUser);
 router.post("/add-friend/:id", controller.addFriendToUser);
 router.delete("/:id", authenticateToken, controller.deleteUser);
 
-
+router.post('/send-req/:id', controller.sendFriendReq);
 
 
 

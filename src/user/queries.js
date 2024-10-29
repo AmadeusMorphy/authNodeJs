@@ -6,6 +6,7 @@ const updateUser = "UPDATE users SET name = $1, email = $2 WHERE id = $3";
 const deleteUser = "DELETE FROM users WHERE id = $1";
 const getUserByEmail = "SELECT * FROM users WHERE email = $1";
 const addFriendToUser = "UPDATE users SET friends = array_append(friends, $1) WHERE id = $2";
+const sendFriendReq = "UPDATE users SET friendReqs = array_append(friendReqs, $1) WHERE id = $2";
 
 
 module.exports = {
@@ -14,6 +15,7 @@ module.exports = {
     getUserById,
     checkEmailExists,
     updateUser,
+    sendFriendReq,
     addFriendToUser,
     getUserByEmail,
     deleteUser,
