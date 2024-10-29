@@ -229,7 +229,7 @@ const addFriendToUser = async (req, res) => {
     // Fetch user's current friendships
     const { data: userData, error: userFetchError } = await supabase
       .from("users")
-      .select("friendships")
+      .select("friendships, friendReqs")
       .eq("id", userId)
       .single();
 
@@ -239,6 +239,7 @@ const addFriendToUser = async (req, res) => {
     }
 
     const friendships = Array.isArray(userData.friendships) ? userData.friendships : [];
+    const friendReqs = Array.isArray(userData.friendReqs) ? userData.friendReqs : [];
 
     // Check if friendship already exists
     const friendshipExists = friendships.some(f => f.friendId === friendId);
@@ -258,13 +259,16 @@ const addFriendToUser = async (req, res) => {
 
     // Add the new friendship to user's friendships
     const newFriendship = { friendId: friendId, messagesId: messagesTableName };
+    const updatedFriendReqs = friendReqs.filter(req => req.userId !== friendId);
+
     const { data: updatedUserData, error: userUpdateError } = await supabase
       .from("users")
       .update({
         friendships: [...friendships, newFriendship],
+        friendReqs: updatedFriendReqs // Update friendReqs by removing the specified friendId
       })
       .eq("id", userId)
-      .select("friendships");
+      .select("friendships, friendReqs");
 
     if (userUpdateError) {
       console.error("Error updating user friends:", userUpdateError);
@@ -313,6 +317,7 @@ const addFriendToUser = async (req, res) => {
     res.status(500).json({ error: "Database error" });
   }
 };
+
 
 
 
